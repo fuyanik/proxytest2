@@ -1,39 +1,33 @@
 const express = require("express");
-const path = require("path");
-const morgan = require("morgan");
-if (process.env.NODE_ENV === "dev") require("./.secrets");
-// Create the server
 const app = express();
-app.use(morgan("tiny")); // logging framework
-console.log(process.env.NODE_ENV, process.env.SECRET);
+// This is your test secret API key.
+const stripe = require("stripe")('sk_test_51LOrQYKGr3XuaAt4d9fT0XXB8CrL4GKbBHG3t8alb1Yo1aIULBvpbUm8UwDZNWNx5YRSatAzkHJH3Jlx25qlPtow00dTA8p2Ij');
 
-// Serve our api message
-app.get("/api/message", async (req, res, next) => {
-  try {
-    res.status(201).json({ message: "Hello From Express!!" });
-  } catch (err) {
-    next(err);
-  }
+app.use(express.static("public"));
+app.use(express.json());
+
+const calculateOrderAmount = (items) => {
+  // Replace this constant with a calculation of the order's amount
+  // Calculate the order total on the server to prevent
+  // people from directly manipulating the amount on the client
+  return 1400;
+};
+
+app.post("/create-payment-intent", async (req, res) => {
+  const { items } = req.body;
+
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: calculateOrderAmount(items),
+    currency: "gbp",
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
 });
 
-if (process.env.NODE_ENV === "production") {
-  // Express will serve up production assets
-  app.use(express.static("build"));
-  app.get("*", (req, res) => res.sendFile(path.resolve("build", "index.html")));
-}
-
-if (process.env.NODE_ENV === "dev") {
-  // Express will serve up production assets
-  app.use(express.static("public"));
-  app.get("*", (req, res) =>
-    res.sendFile(path.resolve("public", "index.html"))
-  );
-}
-
-// Express will serve up the front-end index.html file if it doesn't recognize the route
-
-// Choose the port and start the server
-const PORT = process.env.PORT || 1337;
-app.listen(PORT, () => {
-  console.log(`Mixing it up on port ${PORT}`);
-});
+app.listen(4242, () => console.log("Node server listening on port 4242!"));
